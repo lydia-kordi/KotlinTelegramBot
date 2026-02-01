@@ -1,64 +1,63 @@
-cat кошка
-dog собака
-mouse мышь
-frog лягушка
-tiger тигр
-lion лев
-hippopotamus гиппопотам
-jaguar ягуар
-rhinoceros носорог
-orangutan орангутан
-flamingo фламинго
-crane журавль
-camel верблюд
-zebra зебра
-crocodile крокодил
-elephant слон
-giraffe жираф
-monkey обезьяна
-panda панда
-wolf волк
-fox лиса
-bear медведь
-deer олень
-rabbit кролик
-squirrel белка
-owl сова
-eagle орел
-dolphin дельфин
-shark акула
-whale кит
-penguin пингвин
-seal тюлень
-turtle черепаха
-parrot попугай
-koala коала
-ant муравей
-bee пчела
-butterfly бабочка
-gorilla горилла
-leopard леопард
-buffalo буйвол
-raccoon енот
-otter выдра
-lobster омар
-octopus осьминог
-anaconda анаконда
-ostrich страус
-moose лось
-hedgehog еж
-cheetah гепард
-jellyfish медуза
-cricket сверчок
-worm червь
-chameleon хамелеон
-lemur лемур
-mollusk моллюск
-spider паук
-skunk скунс
-hawk ястреб
-seagull чайка
-cobra кобра
-peacock павлин
-mule мул
-toad жаба
+cat|кошка|0
+dog|собака|0
+mouse|мышь|0
+frog|лягушка|0
+tiger|тигр|0
+lion|лев|0
+hippopotamus|гиппопотам|0
+jaguar|ягуар|0
+rhinoceros|носорог|0
+orangutan|орангутан|0
+flamingo|фламинго|0
+crane|журавль|0
+camel|верблюд|0
+zebra|зебра|0
+crocodile|крокодил|0
+elephant|слон|0
+giraffe|жираф|0
+monkey|обезьяна|0
+panda|панда|0
+wolf|волк|0
+fox|лиса|0
+bear|медведь|0
+deer|олень|0
+rabbit|кролик|0
+squirrel|белка|0
+owl|сова|0
+eagle|орел|0
+dolphin|дельфин|0
+shark|акула|0
+whale|кит|0
+penguin|пингвин|0
+seal|тюлень|0
+turtle|черепаха|0
+parrot|попугай|0
+koala|коала|0
+ant|муравей|0
+bee|пчела|0
+butterfly|бабочка|0
+gorilla|горилла|0
+leopard|леопард|0
+buffalo|буйвол|0
+raccoon|енот|0
+otter|выдра|0
+lobster|омар|0
+octopus|осьминог|0
+anaconda|анаконда|0
+ostrich|страус|0
+moose|лось|0
+hedgehog|ёж|0
+cheetah|гепард|0
+jellyfish|медуза|0
+cricket|сверчок|0
+worm|червь|0
+chameleon|хамелеон|0
+lemur|лемур|0
+mollusk|моллюск|0
+spider|паук|0
+skunk|скунс|0
+hawk|ястреб|0
+seagull|чайка|0
+cobra|кобра|0
+peacock|павлин|0
+toad|жаба|0
