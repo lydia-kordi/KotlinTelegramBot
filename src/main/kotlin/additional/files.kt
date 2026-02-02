@@ -3,7 +3,7 @@ package additional
 import java.io.File
 import java.io.IOException
 
-fun main() {
+fun loadDictionary(): List<Word> {
     val wordsFile = File("words.txt")
     val dictionary = mutableListOf<Word>()
 
@@ -23,8 +23,30 @@ fun main() {
     } catch (e: IOException) {
         println("Ошибка при чтении файла: ${e.message}")
     }
+    return dictionary
+}
 
-    for (entry in dictionary) {
-        println("${entry.text}|${entry.translate}|${entry.correctAnswersCount}")
+fun main() {
+    val dictionary = loadDictionary()
+
+    while (true) {
+        println("Меню:")
+        println("1 - Учить слова")
+        println("2 - Статистика")
+        println("0 - Выход")
+        print("Введите число: ")
+
+        val input = readlnOrNull()
+
+        when (input) {
+            "1" -> println("Вы выбрали 'Учить слова'.")
+            "2" -> println("Вы выбрали 'Статистика'.")
+            "0" -> {
+                println("Выход из программы.")
+                break
+            }
+
+            else -> println("Введите число 1, 2 или 0.")
+        }
     }
 }

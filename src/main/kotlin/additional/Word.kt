@@ -1,6 +1,6 @@
 package additional
 
-data class Word (
+data class Word(
     val text: String,
     val translate: String,
     val correctAnswersCount: Int = 0,
