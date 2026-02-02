@@ -25,28 +25,3 @@ fun loadDictionary(): List<Word> {
     }
     return dictionary
 }
-
-fun main() {
-    val dictionary = loadDictionary()
-
-    while (true) {
-        println("Меню:")
-        println("1 - Учить слова")
-        println("2 - Статистика")
-        println("0 - Выход")
-        print("Введите число: ")
-
-        val input = readlnOrNull()
-
-        when (input) {
-            "1" -> println("Вы выбрали 'Учить слова'.")
-            "2" -> println("Вы выбрали 'Статистика'.")
-            "0" -> {
-                println("Выход из программы.")
-                break
-            }
-
-            else -> println("Введите число 1, 2 или 0.")
-        }
-    }
-}
