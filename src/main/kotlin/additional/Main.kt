@@ -13,7 +13,12 @@ fun main() {
         val input = readlnOrNull()
 
         when (input) {
-            "1" -> println("Вы выбрали 'Учить слова'.")
+            "1" -> {
+                println()
+                println("Вы выбрали 'Учить слова'.")
+                println()
+                studyWords(dictionary)
+            }
             "2" -> {
                 println()
                 printStatistics(dictionary)
