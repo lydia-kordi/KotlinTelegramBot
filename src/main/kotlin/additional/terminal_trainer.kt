@@ -3,7 +3,7 @@ package additional
 import java.io.File
 import java.io.IOException
 
-fun loadDictionary(): List<Word> {
+fun loadDictionary(): MutableList<Word> {
     val wordsFile = File("words.txt")
     val dictionary = mutableListOf<Word>()
 
@@ -37,38 +37,80 @@ fun printStatistics(dictionary: MutableList<Word>) {
 }
 
 fun studyWords(dictionary: MutableList<Word>) {
+    if (dictionary.size < 4) {
+        println()
+        println("В словаре недостаточно слов для начала изучения. Добавь минимум 4 слова.")
+        println()
+        return
+    }
+
+    val notLearnedList = dictionary.filter { it.correctAnswersCount < 3 }
+
+    if (notLearnedList.isEmpty()) {
+        println()
+        println("Все слова в словаре выучены!")
+        println()
+        return
+    }
+
     while (dictionary.any { it.correctAnswersCount < 3 }) {
-        val notLearnedList = dictionary.filter { it.correctAnswersCount < 3 }
-        if (notLearnedList.size < 4) {
-            println("Недостаточно слов для выбора вариантов. Возможно, нужно добавить больше слов.")
-            return
+
+        var questionWords = notLearnedList.toMutableList()
+
+        if (questionWords.size < 4) {
+            val learnedList = dictionary.filter { it.correctAnswersCount >= 3 }
+            val additionalWords = learnedList.shuffled().take(4 - questionWords.size)
+            questionWords.addAll(additionalWords)
         }
 
-        val questionWords = notLearnedList.shuffled().take(4).toMutableList()
-        val correctAnswer = questionWords.random()
+        questionWords = questionWords.shuffled().take(4).toMutableList()
+        val correctAnswer = notLearnedList.random()
 
         println()
         println("${correctAnswer.text}:")
-        questionWords.mapIndexed { index, word -> println("${index + 1} - ${word.translate}") }
+        questionWords.mapIndexed { index, word ->
+            println("${index + 1} - ${word.translate}")
+        }
+        println(" ----------")
+        println("0 - Меню")
 
-        print("Введите номер ответа: ")
-        val userInput = readLine()?.toIntOrNull()
+        println()
+        print("Введи номер ответа: ")
+        val userInput = readlnOrNull()?.trim()?.toIntOrNull()
 
-        if (userInput != null && userInput in 1..4) {
-            val selectedTranslation = questionWords[userInput - 1].translate
-            if (selectedTranslation == correctAnswer.translate) {
-                println("Правильно!")
-                correctAnswer.correctAnswersCount += 1
-            } else {
-                println("Неправильно. Правильный ответ: ${correctAnswer.translate}")
-            }
-        } else {
-            println("Введите число от 1 до 4.")
+        if (userInput == 0) {
+            println()
+            println("Возврат в главное меню.")
+            println()
+            return
         }
 
-        if (dictionary.all { it.correctAnswersCount >= 3 }) {
-            println("Все слова в словаре выучены.")
-            return
+        if (userInput != null && userInput in 1..questionWords.size) {
+            val selectedTranslation = questionWords[userInput - 1].translate
+            if (selectedTranslation == correctAnswer.translate) {
+                println()
+                println("Правильно!")
+                correctAnswer.correctAnswersCount += 1
+
+                saveWordsToFile(dictionary)
+            } else {
+                println()
+                println("Неправильно! ${correctAnswer.text} – это ${correctAnswer.translate}")
+            }
+        } else {
+            println("Введи вариант ответа от 1 до 4.")
+        }
+    }
+    println()
+    println("Поздравляю! Ты выучил все слова в словаре!")
+    println()
+}
+
+fun saveWordsToFile(dictionary: List<Word>) {
+    val wordsFile = File("words.txt")
+    wordsFile.printWriter().use { out ->
+        dictionary.forEach { word ->
+            out.println("${word.text}|${word.translate}|${word.correctAnswersCount}")
         }
     }
 }

@@ -1,6 +1,7 @@
 cat|кошка|0
 dog|собака|0
 mouse|мышь|0
+lion|лев|0
 frog|лягушка|0
 tiger|тигр|0
 lion|лев|0
@@ -38,11 +39,11 @@ bee|пчела|0
 butterfly|бабочка|0
 gorilla|горилла|0
 leopard|леопард|0
-buffalo|буйвол|0
+buffalo|буйвол|1
 raccoon|енот|0
 otter|выдра|0
 lobster|омар|0
-octopus|осьминог|0
+octopus|осьминог|1
 anaconda|анаконда|0
 ostrich|страус|0
 moose|лось|0

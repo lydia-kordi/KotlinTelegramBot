@@ -8,21 +8,22 @@ fun main() {
         println("1 - Учить слова")
         println("2 - Статистика")
         println("0 - Выход")
-        print("Введите число: ")
+        print("Введи число: ")
 
         val input = readlnOrNull()
 
         when (input) {
             "1" -> {
                 println()
-                println("Вы выбрали 'Учить слова'.")
-                println()
+                println("Ты выбрал 'Учить слова'.")
                 studyWords(dictionary)
             }
+
             "2" -> {
                 println()
                 printStatistics(dictionary)
             }
+
             "0" -> {
                 println("Выход из программы.")
                 return
