@@ -38,22 +38,19 @@ fun printStatistics(dictionary: MutableList<Word>) {
 
 fun studyWords(dictionary: MutableList<Word>) {
     if (dictionary.size < 4) {
-        println()
-        println("В словаре недостаточно слов для начала изучения. Добавь минимум 4 слова.")
-        println()
+        println("В словаре недостаточно слов для начала изучения. Добавьте минимум 4 слова.")
         return
     }
 
-    val notLearnedList = dictionary.filter { it.correctAnswersCount < 3 }
+    while (true) {
+        val notLearnedList = dictionary.filter { it.correctAnswersCount < 3 }.toMutableList()
 
-    if (notLearnedList.isEmpty()) {
-        println()
-        println("Все слова в словаре выучены!")
-        println()
-        return
-    }
-
-    while (dictionary.any { it.correctAnswersCount < 3 }) {
+        if (notLearnedList.isEmpty()) {
+            println()
+            println("Поздравляем! Все слова в словаре выучены!")
+            println()
+            return
+        }
 
         var questionWords = notLearnedList.toMutableList()
 
@@ -74,36 +71,31 @@ fun studyWords(dictionary: MutableList<Word>) {
         println(" ----------")
         println("0 - Меню")
 
-        println()
-        print("Введи номер ответа: ")
+        print("Введите номер ответа: ")
         val userInput = readlnOrNull()?.trim()?.toIntOrNull()
 
         if (userInput == 0) {
-            println()
             println("Возврат в главное меню.")
-            println()
             return
         }
 
         if (userInput != null && userInput in 1..questionWords.size) {
             val selectedTranslation = questionWords[userInput - 1].translate
             if (selectedTranslation == correctAnswer.translate) {
-                println()
                 println("Правильно!")
                 correctAnswer.correctAnswersCount += 1
 
                 saveWordsToFile(dictionary)
             } else {
-                println()
-                println("Неправильно! ${correctAnswer.text} – это ${correctAnswer.translate}")
+                println("Неправильно. Правильный ответ: ${correctAnswer.translate}")
             }
         } else {
             println("Введи вариант ответа от 1 до 4.")
         }
+        println()
+        println("Поздравляю! Ты выучил все слова в словаре!")
+        println()
     }
-    println()
-    println("Поздравляю! Ты выучил все слова в словаре!")
-    println()
 }
 
 fun saveWordsToFile(dictionary: List<Word>) {
