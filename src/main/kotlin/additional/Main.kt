@@ -13,17 +13,24 @@ fun main() {
         val input = readlnOrNull()
 
         when (input) {
-            "1" -> println("Вы выбрали 'Учить слова'.")
+            "1" -> {
+                println()
+                println("Ты выбрал 'Учить слова'.")
+                studyWords(dictionary)
+            }
+
             "2" -> {
                 println()
                 printStatistics(dictionary)
             }
+
             "0" -> {
+                println()
                 println("Выход из программы.")
                 return
             }
 
-            else -> println("Введите число 1, 2 или 0.")
+            else -> println("Введи число 1, 2 или 0.")
         }
     }
 }
