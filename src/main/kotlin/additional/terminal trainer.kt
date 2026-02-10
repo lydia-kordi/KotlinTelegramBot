@@ -61,7 +61,7 @@ fun studyWords(dictionary: MutableList<Word>) {
         }
 
         questionWords = questionWords.shuffled().take(4).toMutableList()
-        val correctAnswer = notLearnedList.random()
+        val correctAnswer = questionWords.random()
 
         println()
         println("${correctAnswer.text}:")
