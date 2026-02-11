@@ -3,6 +3,10 @@ package additional
 import java.io.File
 import java.io.IOException
 
+const val MIN_TOTAL_WORDS = 4
+const val MIN_RIGHT_ANSWERED = 3
+const val MIN_UNLEARNED_WORDS = 3
+
 fun loadDictionary(): MutableList<Word> {
     val wordsFile = File("words.txt")
     val dictionary = mutableListOf<Word>()
@@ -27,7 +31,7 @@ fun loadDictionary(): MutableList<Word> {
 }
 
 fun printStatistics(dictionary: MutableList<Word>) {
-    val learnedWords = dictionary.filter { it.correctAnswersCount >= 3 }
+    val learnedWords = dictionary.filter { it.correctAnswersCount >= MIN_RIGHT_ANSWERED }
     val totalCount = dictionary.size
     val learnedCount = learnedWords.size
     val percent = if (totalCount > 0) (learnedCount * 100) / totalCount else 0
@@ -37,34 +41,32 @@ fun printStatistics(dictionary: MutableList<Word>) {
 }
 
 fun studyWords(dictionary: MutableList<Word>) {
-    if (dictionary.size < 4) {
-        println()
-        println("В словаре недостаточно слов для начала изучения. Добавь минимум 4 слова.")
-        println()
+    if (dictionary.size < MIN_TOTAL_WORDS) {
+        println("В словаре недостаточно слов для начала изучения. Добавь минимум $MIN_TOTAL_WORDS слов(а).")
         return
     }
 
-    val notLearnedList = dictionary.filter { it.correctAnswersCount < 3 }
+    while (true) {
+        val notLearnedList = dictionary.filter { it.correctAnswersCount < MIN_RIGHT_ANSWERED }.toMutableList()
 
-    if (notLearnedList.isEmpty()) {
-        println()
-        println("Все слова в словаре выучены!")
-        println()
-        return
-    }
-
-    while (dictionary.any { it.correctAnswersCount < 3 }) {
-
-        var questionWords = notLearnedList.toMutableList()
-
-        if (questionWords.size < 4) {
-            val learnedList = dictionary.filter { it.correctAnswersCount >= 3 }
-            val additionalWords = learnedList.shuffled().take(4 - questionWords.size)
-            questionWords.addAll(additionalWords)
+        if (notLearnedList.isEmpty()) {
+            println()
+            println("Поздравляем! Все слова в словаре выучены!")
+            println()
+            return
         }
 
-        questionWords = questionWords.shuffled().take(4).toMutableList()
         val correctAnswer = notLearnedList.random()
+        val questionWords = mutableListOf(correctAnswer)
+
+        val remainingWords = if (notLearnedList.size > MIN_UNLEARNED_WORDS) {
+            notLearnedList.filter { it != correctAnswer }.shuffled().take(3)
+        } else {
+            dictionary.filter { it != correctAnswer }.shuffled().take(3)
+        }
+
+        questionWords.addAll(remainingWords)
+        questionWords.shuffle()
 
         println()
         println("${correctAnswer.text}:")
@@ -74,36 +76,28 @@ fun studyWords(dictionary: MutableList<Word>) {
         println(" ----------")
         println("0 - Меню")
 
-        println()
         print("Введи номер ответа: ")
         val userInput = readlnOrNull()?.trim()?.toIntOrNull()
 
         if (userInput == 0) {
-            println()
             println("Возврат в главное меню.")
-            println()
             return
         }
 
         if (userInput != null && userInput in 1..questionWords.size) {
             val selectedTranslation = questionWords[userInput - 1].translate
             if (selectedTranslation == correctAnswer.translate) {
-                println()
                 println("Правильно!")
                 correctAnswer.correctAnswersCount += 1
 
                 saveWordsToFile(dictionary)
             } else {
-                println()
                 println("Неправильно! ${correctAnswer.text} – это ${correctAnswer.translate}")
             }
         } else {
-            println("Введи вариант ответа от 1 до 4.")
+            println("Введи номер ответа от 1 до 4.")
         }
     }
-    println()
-    println("Поздравляю! Ты выучил все слова в словаре!")
-    println()
 }
 
 fun saveWordsToFile(dictionary: List<Word>) {
