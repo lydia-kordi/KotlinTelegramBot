@@ -13,7 +13,13 @@ data class Word(
     var correctAnswersCount: Int = 0,
 )
 
+data class Question(
+    val variants: List<Word>,
+    val correctAnswer: Word,
+)
+
 fun List<Word>.filterNotLearnedWords() = filter { it.correctAnswersCount < MIN_RIGHT_ANSWERED }.toMutableList()
+
 fun List<Word>.shuffledMinus(exclude: Word, limit: Int) = filter { it != exclude }.shuffled().take(limit)
 
 fun String.toWord(): Word? {
@@ -28,7 +34,8 @@ fun String.toWord(): Word? {
     }
 }
 
-class StudyTrainer(private val dictionary: MutableList<Word>, private val ui: UserInterface) {
+class LearnWordsTrainer(private val dictionary: List<Word>, private val ui: UserInterface) {
+
     fun start() {
         if (!canStartStudy()) return
 
@@ -39,17 +46,16 @@ class StudyTrainer(private val dictionary: MutableList<Word>, private val ui: Us
                 return
             }
 
-            val correctAnswer = notLearnedList.random()
-            val questionWords = createQuestionWords(notLearnedList, dictionary, correctAnswer)
-
-            ui.displayQuestion(correctAnswer.text, questionWords.map { it.translate })
+            val question = getNextQuestion(notLearnedList)
+            ui.displayQuestion(question.correctAnswer.text, question.variants.map { it.translate })
 
             when (val userInput = ui.getUserInput()) {
                 0 -> return
-                in 1..(questionWords.size) -> userInput?.let {
-                    handleAnswer(questionWords[it - 1], correctAnswer)
+                in 1..(question.variants.size) -> {
+                    userInput?.let {
+                        checkAnswer(question.variants[it - 1], question.correctAnswer)
+                    }
                 }
-
                 else -> ui.displayMessage("Введи номер ответа от 1 до 4.")
             }
         }
@@ -64,7 +70,7 @@ class StudyTrainer(private val dictionary: MutableList<Word>, private val ui: Us
         }
     }
 
-    private fun handleAnswer(selectedWord: Word, correctAnswer: Word) {
+    private fun checkAnswer(selectedWord: Word, correctAnswer: Word) {
         if (selectedWord.translate == correctAnswer.translate) {
             ui.displayMessage("Правильно!")
             correctAnswer.correctAnswersCount++
@@ -74,18 +80,26 @@ class StudyTrainer(private val dictionary: MutableList<Word>, private val ui: Us
         }
     }
 
-    private fun createQuestionWords(
-        notLearnedList: List<Word>,
-        dictionary: List<Word>,
-        correctAnswer: Word,
-    ): List<Word> {
+    private fun getNextQuestion(notLearnedList: List<Word>): Question {
+        val correctAnswer = notLearnedList.random()
         val remainingWords = if (notLearnedList.size > MIN_UNLEARNED_WORDS) {
             notLearnedList.shuffledMinus(correctAnswer, 3)
         } else {
             dictionary.shuffledMinus(correctAnswer, 3)
         }
-        return (listOf(correctAnswer) + remainingWords).shuffled()
+        val variants = (listOf(correctAnswer) + remainingWords).shuffled()
+        return Question(variants, correctAnswer)
     }
+}
+
+fun printStatistics(dictionary: MutableList<Word>) {
+    val learnedWords = dictionary.filter { it.correctAnswersCount >= MIN_RIGHT_ANSWERED }
+    val totalCount = dictionary.size
+    val learnedCount = learnedWords.size
+    val percent = if (totalCount > 0) (learnedCount * 100) / totalCount else 0
+
+    println("Выучено $learnedCount из $totalCount слов | $percent%")
+    println()
 }
 
 fun loadDictionary(fileName: String): MutableList<Word> {
@@ -105,4 +119,3 @@ fun saveWordsToFile(dictionary: List<Word>, fileName: String) {
         }
     }
 }
-

@@ -1,8 +1,8 @@
-cat|кошка|0
-dog|собака|0
+cat|кошка|3
+dog|собака|3
 mouse|мышь|3
-frog|лягушка|
+frog|лягушка|3
 lion|лев|3
 hippopotamus|гиппопотам|3
 jaguar|ягуар|3
-rhinoceros|носорог|
+rhinoceros|носорог|3
