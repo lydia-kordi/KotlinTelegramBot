@@ -34,6 +34,8 @@ fun String.toWord(): Word? {
     }
 }
 
+data class Statistics(val learned: Int, val total: Int)
+
 class LearnWordsTrainer(private val dictionary: List<Word>, private val ui: UserInterface) {
 
     fun start() {
@@ -56,6 +58,7 @@ class LearnWordsTrainer(private val dictionary: List<Word>, private val ui: User
                         checkAnswer(question.variants[it - 1], question.correctAnswer)
                     }
                 }
+
                 else -> ui.displayMessage("Введи номер ответа от 1 до 4.")
             }
         }
@@ -90,15 +93,20 @@ class LearnWordsTrainer(private val dictionary: List<Word>, private val ui: User
         val variants = (listOf(correctAnswer) + remainingWords).shuffled()
         return Question(variants, correctAnswer)
     }
+
+    fun getStatistics(): Statistics {
+        val learnedWords = dictionary.filter { it.correctAnswersCount >= MIN_RIGHT_ANSWERED }
+        val learnedCount = learnedWords.size
+        val totalCount = dictionary.size
+        return Statistics(learnedCount, totalCount)
+    }
 }
 
-fun printStatistics(dictionary: MutableList<Word>) {
-    val learnedWords = dictionary.filter { it.correctAnswersCount >= MIN_RIGHT_ANSWERED }
-    val totalCount = dictionary.size
-    val learnedCount = learnedWords.size
-    val percent = if (totalCount > 0) (learnedCount * 100) / totalCount else 0
+fun printStatistics(trainer: LearnWordsTrainer) {
+    val statistics = trainer.getStatistics()
+    val percent = if (statistics.total > 0) (statistics.learned * 100) / statistics.total else 0
 
-    println("Выучено $learnedCount из $totalCount слов | $percent%")
+    println("Выучено ${statistics.learned} из ${statistics.total} слов | $percent%")
     println()
 }
 

@@ -23,7 +23,7 @@ fun main() {
 
             "2" -> {
                 println()
-                printStatistics(dictionary)
+                printStatistics(trainer)
             }
 
             "0" -> {
