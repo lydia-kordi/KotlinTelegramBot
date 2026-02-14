@@ -2,7 +2,7 @@ cat|кошка|3
 dog|собака|3
 mouse|мышь|3
 frog|лягушка|3
-lion|лев|0
-hippopotamus|гиппопотам|0
-jaguar|ягуар|0
-rhinoceros|носорог|0
+lion|лев|3
+hippopotamus|гиппопотам|3
+jaguar|ягуар|3
+rhinoceros|носорог|3

@@ -1,7 +1,9 @@
 package additional
 
 fun main() {
-    val dictionary = loadDictionary()
+    val dictionary = loadDictionary("words.txt")
+    val ui = ConsoleUI()
+    val trainer = LearnWordsTrainer(dictionary, ui)
 
     while (true) {
         println("Меню:")
@@ -16,12 +18,12 @@ fun main() {
             "1" -> {
                 println()
                 println("Ты выбрал 'Учить слова'.")
-                studyWords(dictionary)
+                trainer.start()
             }
 
             "2" -> {
                 println()
-                printStatistics(dictionary)
+                printStatistics(trainer)
             }
 
             "0" -> {
