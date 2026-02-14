@@ -6,6 +6,7 @@ import java.io.IOException
 const val MIN_TOTAL_WORDS = 4
 const val MIN_RIGHT_ANSWERED = 3
 const val MIN_UNLEARNED_WORDS = 3
+const val WORDS_FILE_NAME = "words.txt"
 
 data class Word(
     val text: String,
@@ -17,6 +18,16 @@ data class Question(
     val variants: List<Word>,
     val correctAnswer: Word,
 )
+
+fun Question.asConsoleString(): String {
+    return buildString {
+        appendLine("\n${correctAnswer.text}:")
+        variants.forEachIndexed { index, word ->
+            appendLine("${index + 1} - ${word.translate}")
+        }
+        appendLine(" ----------\n0 - Меню")
+    }
+}
 
 fun List<Word>.filterNotLearnedWords() = filter { it.correctAnswersCount < MIN_RIGHT_ANSWERED }.toMutableList()
 
@@ -49,8 +60,7 @@ class LearnWordsTrainer(private val dictionary: List<Word>, private val ui: User
             }
 
             val question = getNextQuestion(notLearnedList)
-            ui.displayQuestion(question.correctAnswer.text, question.variants.map { it.translate })
-
+            ui.displayMessage(question.asConsoleString())
             when (val userInput = ui.getUserInput()) {
                 0 -> return
                 in 1..(question.variants.size) -> {
@@ -77,7 +87,7 @@ class LearnWordsTrainer(private val dictionary: List<Word>, private val ui: User
         if (selectedWord.translate == correctAnswer.translate) {
             ui.displayMessage("Правильно!")
             correctAnswer.correctAnswersCount++
-            saveWordsToFile(dictionary, "words.txt")
+            dictionary.saveToFile()
         } else {
             ui.displayMessage("Неправильно! ${correctAnswer.text} – это ${correctAnswer.translate}")
         }
@@ -120,9 +130,9 @@ fun loadDictionary(fileName: String): MutableList<Word> {
     }
 }
 
-fun saveWordsToFile(dictionary: List<Word>, fileName: String) {
+fun List<Word>.saveToFile(fileName: String = WORDS_FILE_NAME) {
     File(fileName).printWriter().use { out ->
-        dictionary.forEach { word ->
+        forEach { word ->
             out.println("${word.text}|${word.translate}|${word.correctAnswersCount}")
         }
     }
