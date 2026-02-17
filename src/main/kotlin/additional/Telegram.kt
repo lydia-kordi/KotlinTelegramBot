@@ -7,6 +7,8 @@ import java.net.http.HttpResponse
 
 const val TELEGRAM_BASE_URL = "https://api.telegram.org/bot"
 
+val client: HttpClient = HttpClient.newBuilder().build()
+
 fun main(args: Array<String>) {
 
     val botToken = args[0]
@@ -15,22 +17,28 @@ fun main(args: Array<String>) {
     while (true) {
         Thread.sleep(2000)
         val updates: String = getUpdates(botToken, updateId)
-        println(updates)
 
-        val startUpdateId = updates.lastIndexOf("update_id")
-        val endUpdateId = updates.lastIndexOf(",\n\"message\"")
-        if (startUpdateId == -1 || endUpdateId == -1) continue
-        val updateIdString = updates.substring(startUpdateId + 11, endUpdateId)
-        updateId = updateIdString.toInt() + 1
+        val updateIdRegex = "\"update_id\":(\\d+)".toRegex()
+        val updateMatch = updateIdRegex.find(updates)
+        if (updateMatch != null) {
+            updateId = updateMatch.groupValues[1].toInt() + 1
+        }
+
+        val messageTextRegex: Regex = "\"text\":\"(.+?)\"".toRegex()
+        val matchResult: MatchResult? = messageTextRegex.find(updates)
+        val groups = matchResult?.groups
+        val text = groups?.get(1)?.value
+
+        text?.let {
+            println(it)
+        }
     }
 }
 
 fun getUpdates(botToken: String, updateID: Int): String {
     val urlGetUpdates = "$TELEGRAM_BASE_URL$botToken/getUpdates?offset=$updateID"
-    val builder = HttpClient.newBuilder()
-    val client = builder.build()
-    val requestGeUpdates: HttpRequest = HttpRequest.newBuilder().uri(URI.create(urlGetUpdates)).build()
-    val responseGetUpdates: HttpResponse<String> = client.send(requestGeUpdates, HttpResponse.BodyHandlers.ofString())
+    val requestGetUpdates: HttpRequest = HttpRequest.newBuilder().uri(URI.create(urlGetUpdates)).build()
+    val responseGetUpdates: HttpResponse<String> = client.send(requestGetUpdates, HttpResponse.BodyHandlers.ofString())
 
     return responseGetUpdates.body()
 }
