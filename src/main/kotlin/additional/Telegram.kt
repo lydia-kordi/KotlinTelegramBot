@@ -47,17 +47,17 @@ fun main(args: Array<String>) {
 
         val updates: String = botService.getUpdates(updateId)
 
-        val updateIdRegex = "\"update_id\":(\\d+)".toRegex()
+        val updateIdRegex = "\"update_id\"\\s*:\\s*(\\d+)".toRegex()
         val updateMatch = updateIdRegex.find(updates)
         if (updateMatch != null) {
             updateId = updateMatch.groupValues[1].toInt() + 1
         }
 
-        val chatIdRegex = "\"chat\":\\{\"id\":(\\d+)".toRegex()
+        val chatIdRegex = "\"chat\"\\s*:\\s*\\{\\s*\"id\"\\s*:\\s*(\\d+)".toRegex()
         val chatMatch = chatIdRegex.find(updates)
         val chatId = chatMatch?.groupValues?.get(1)
 
-        val messageTextRegex: Regex = "\"text\":\"(.+?)\"".toRegex()
+        val messageTextRegex: Regex = "\"text\"\\s*:\\s*\"(.+?)\"".toRegex()
         val matchResult: MatchResult? = messageTextRegex.find(updates)
         val groups = matchResult?.groups
         val text = groups?.get(1)?.value
