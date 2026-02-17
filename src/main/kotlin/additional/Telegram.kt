@@ -45,17 +45,17 @@ class TelegramBotService(private val botToken: String) {
                   [
                     {
                       "text": "Изучать слова",
-                      "callback_data": "learn_words"
+                      "callback_data": "learn_words_clicked"
                     },
                     {
                       "text": "Статистика",
-                      "callback_data": "show_statistics"
+                      "callback_data": "show_statistics_clicked"
                     }
                   ],
                   [
                     {
                       "text": "Выход",
-                      "callback_data": "exit_menu"
+                      "callback_data": "exit_menu_clicked"
                     }
                   ]
                 ]
