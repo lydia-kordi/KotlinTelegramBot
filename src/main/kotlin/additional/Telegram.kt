@@ -7,7 +7,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
 const val TELEGRAM_BASE_URL = "https://api.telegram.org/bot"
-const val HELLO_COMMAND = "hello"
+const val HELLO_COMMAND = "/start"
 
 class TelegramBotService(private val botToken: String) {
 
@@ -33,6 +33,45 @@ class TelegramBotService(private val botToken: String) {
 
         responseSendMessage.body()
     }
+
+    fun sendMenu(chatId: String): String {
+        val sendMessage = "$TELEGRAM_BASE_URL$botToken/sendMessage"
+        val sendMenuBody = """
+            {
+              "chat_id": $chatId,
+              "text": "Основное меню",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    {
+                      "text": "Изучать слова",
+                      "callback_data": "learn_words"
+                    },
+                    {
+                      "text": "Статистика",
+                      "callback_data": "show_statistics"
+                    }
+                  ],
+                  [
+                    {
+                      "text": "Выход",
+                      "callback_data": "exit_menu"
+                    }
+                  ]
+                ]
+              }
+            }
+        """.trimIndent()
+
+        val requestSendMessage: HttpRequest =
+            HttpRequest.newBuilder().uri(URI.create(sendMessage)).header("Content-type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(sendMenuBody)).build()
+
+        val responseSendMessage: HttpResponse<String> =
+            client.send(requestSendMessage, HttpResponse.BodyHandlers.ofString())
+
+        return responseSendMessage.body()
+    }
 }
 
 fun main(args: Array<String>) {
@@ -40,37 +79,38 @@ fun main(args: Array<String>) {
     val botToken = args[0]
     val botService = TelegramBotService(botToken)
 
+    val updateIdRegex = "\"update_id\"\\s*:\\s*(\\d+)".toRegex()
+    val chatIdRegex = "\"chat\"\\s*:\\s*\\{\\s*\"id\"\\s*:\\s*(\\d+)".toRegex()
+    val messageTextRegex = "\"text\"\\s*:\\s*\"(.+?)\"".toRegex()
+    val callbackRegex = "\"callback_data\"\\s*:\\s*\"(.+?)\"".toRegex()
+
     var updateId = 0
 
     while (true) {
         Thread.sleep(2000)
 
-        val updates: String = botService.getUpdates(updateId)
+        val updates = botService.getUpdates(updateId)
 
-        val updateIdRegex = "\"update_id\"\\s*:\\s*(\\d+)".toRegex()
-        val updateMatch = updateIdRegex.find(updates)
-        if (updateMatch != null) {
-            updateId = updateMatch.groupValues[1].toInt() + 1
+        updateIdRegex.find(updates)?.let {
+            updateId = it.groupValues[1].toInt() + 1
         }
 
-        val chatIdRegex = "\"chat\"\\s*:\\s*\\{\\s*\"id\"\\s*:\\s*(\\d+)".toRegex()
-        val chatMatch = chatIdRegex.find(updates)
-        val chatId = chatMatch?.groupValues?.get(1)
-
-        val messageTextRegex: Regex = "\"text\"\\s*:\\s*\"(.+?)\"".toRegex()
-        val matchResult: MatchResult? = messageTextRegex.find(updates)
-        val groups = matchResult?.groups
-        val text = groups?.get(1)?.value
-
+        val chatId = chatIdRegex.find(updates)?.groupValues?.get(1)
+        val text = messageTextRegex.find(updates)?.groups?.get(1)?.value
+        val callback = callbackRegex.find(updates)?.groups?.get(1)?.value
         val normalizedText = text?.trim()?.lowercase()?.replace(Regex("\\s+"), " ")
 
-        if (chatId != null && normalizedText != null) {
-            println(
-                "update_id=$updateId chat_id=$chatId: $text"
-            )
+        if (chatId != null) {
+            if (callback != null) {
+                println("update_id=$updateId chat_id=$chatId callback=$callback")
+            } else if (normalizedText != null) {
+                println("update_id=$updateId chat_id=$chatId message=\"$text\"")
 
-            if (normalizedText.contains(HELLO_COMMAND)) {
-                botService.sendMessage(chatId, HELLO_COMMAND)
+                if (normalizedText.contains(HELLO_COMMAND)) {
+                    botService.sendMenu(chatId)
+                } else {
+                    botService.sendMessage(chatId, "Такой команды не существует")
+                }
             }
         }
     }
