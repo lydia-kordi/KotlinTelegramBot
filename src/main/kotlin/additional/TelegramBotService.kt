@@ -69,13 +69,10 @@ class TelegramBotService(
 
             STATISTICS_CLICKED -> {
                 val statistics = trainer.getStatistics()
-                val percent = if (statistics.total > 0) (statistics.learned * 100) / statistics.total
-                else 0
-
                 val body = """
                     {
                       "chat_id": $chatId,
-                      "text": "Выучено ${statistics.learned} из ${statistics.total} слов | $percent%",
+                      "text": "Выучено ${statistics.learned} из ${statistics.total} слов | ${statistics.percent}%",
                       "reply_markup": {
                         "inline_keyboard": [
                           [

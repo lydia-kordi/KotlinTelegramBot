@@ -85,7 +85,6 @@ class LearnWordsTrainer(private val dictionary: MutableList<Word>) {
         } else {
             0
         }
-
         return Statistics(
             learned = learned,
             total = total,
