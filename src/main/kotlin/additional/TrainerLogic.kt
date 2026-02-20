@@ -19,7 +19,7 @@ data class Question(
     val correctAnswer: Word,
 )
 
-data class Statistics(val learned: Int, val total: Int)
+data class Statistics(val learned: Int, val total: Int, val percent: Int)
 
 fun List<Word>.filterNotLearnedWords() =
     filter { it.correctAnswersCount < MIN_RIGHT_ANSWERED }.toMutableList()
@@ -75,8 +75,22 @@ class LearnWordsTrainer(private val dictionary: MutableList<Word>) {
         currentQuestion?.correctAnswer
 
     fun getStatistics(): Statistics {
-        val learned = dictionary.count { it.correctAnswersCount >= MIN_RIGHT_ANSWERED }
-        return Statistics(learned, dictionary.size)
+        val total = dictionary.size
+        val learned = dictionary.count {
+            it.correctAnswersCount >= MIN_RIGHT_ANSWERED
+        }
+
+        val percent = if (total > 0) {
+            (learned * 100) / total
+        } else {
+            0
+        }
+
+        return Statistics(
+            learned = learned,
+            total = total,
+            percent = percent
+        )
     }
 
     private fun getNextQuestion(notLearnedList: List<Word>): Question {
