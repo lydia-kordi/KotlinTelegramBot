@@ -38,7 +38,7 @@ class TelegramBotService(
     ) {
         when {
             callbackData == LEARN_WORDS_CLICKED -> {
-                checkNextQuestionAndSend(chatId.toInt())
+                checkNextQuestionAndSend(chatId)
             }
 
             callbackData == STATISTICS_CLICKED -> {
@@ -56,8 +56,8 @@ class TelegramBotService(
                     .removePrefix(CALLBACK_DATA_ANSWER_PREFIX)
                     .toIntOrNull() ?: return
 
-                val isCorrect = trainer.submitAnswer(index)
                 val correctWord = trainer.getCorrectAnswer()
+                val isCorrect = trainer.submitAnswer(index)
                 val nextQuestion = trainer.startLearning()
 
                 val response = buildLearningResponse(
@@ -71,15 +71,15 @@ class TelegramBotService(
         }
     }
 
-    private fun checkNextQuestionAndSend(chatId: Int) {
-        val chatIdStr = chatId.toString()
+    private fun checkNextQuestionAndSend(chatId: String) {
+
 
         if (!trainer.canStartStudy()) {
             val response = BotResponse(
                 text = "📚 Для начала обучения добавьте не менее 4 слов в словарь.",
                 keyboard = listOf(listOf(backButton()))
             )
-            sendResponse(chatIdStr, null, response)
+            sendResponse(chatId, null, response)
             return
         }
 
@@ -97,7 +97,7 @@ class TelegramBotService(
             )
         }
 
-        sendResponse(chatIdStr, null, response)
+        sendResponse(chatId, null, response)
     }
 
     private fun buildMenuResponse(): BotResponse {
