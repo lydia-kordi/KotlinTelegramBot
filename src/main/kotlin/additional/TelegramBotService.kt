@@ -1,7 +1,6 @@
 package additional
 
 import java.net.URI
-import java.net.URLEncoder
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
@@ -9,7 +8,9 @@ import java.net.http.HttpResponse
 const val TELEGRAM_BASE_URL = "https://api.telegram.org/bot"
 const val LEARN_WORDS_CLICKED = "learn_words_clicked"
 const val STATISTICS_CLICKED = "show_statistics_clicked"
-const val BACK_TO_MENU = "back_to_menu"
+
+private const val CALLBACK_DATA_BACK = "back"
+private const val CALLBACK_DATA_ANSWER_PREFIX = "answer_"
 
 class TelegramBotService(
     private val botToken: String,
@@ -25,82 +26,251 @@ class TelegramBotService(
         return response.body()
     }
 
-    fun sendMessage(chatId: String, text: String) {
-        val url = "$TELEGRAM_BASE_URL$botToken/sendMessage?chat_id=$chatId&text=${URLEncoder.encode(text, "UTF-8")}"
-
-        val request = HttpRequest.newBuilder().uri(URI.create(url)).build()
-
-        client.send(request, HttpResponse.BodyHandlers.ofString())
+    fun handleStart(chatId: String) {
+        val response = buildMenuResponse()
+        sendResponse(chatId, null, response)
     }
 
-    fun sendMenu(chatId: String) {
+    fun handleCallback(
+        chatId: String,
+        messageId: Int,
+        callbackData: String,
+    ) {
+        when {
+            callbackData == LEARN_WORDS_CLICKED -> {
+                checkNextQuestionAndSend(chatId)
+            }
+
+            callbackData == STATISTICS_CLICKED -> {
+                val response = buildStatisticsResponse()
+                sendResponse(chatId, messageId, response)
+            }
+
+            callbackData == CALLBACK_DATA_BACK -> {
+                val response = buildMenuResponse()
+                sendResponse(chatId, messageId, response)
+            }
+
+            callbackData.startsWith(CALLBACK_DATA_ANSWER_PREFIX) -> {
+                val index = callbackData
+                    .removePrefix(CALLBACK_DATA_ANSWER_PREFIX)
+                    .toIntOrNull() ?: return
+
+                val correctWord = trainer.getCorrectAnswer()
+                val isCorrect = trainer.submitAnswer(index)
+                val nextQuestion = trainer.startLearning()
+
+                val response = buildLearningResponse(
+                    isCorrect,
+                    correctWord,
+                    nextQuestion
+                )
+
+                sendResponse(chatId, messageId, response)
+            }
+        }
+    }
+
+    private fun checkNextQuestionAndSend(chatId: String) {
+
+
+        if (!trainer.canStartStudy()) {
+            val response = BotResponse(
+                text = "📚 Для начала обучения добавьте не менее 4 слов в словарь.",
+                keyboard = listOf(listOf(backButton()))
+            )
+            sendResponse(chatId, null, response)
+            return
+        }
+
+        val question = trainer.startLearning()
+
+        val response = if (question == null) {
+            BotResponse(
+                text = "🎉 Отлично! Все слова в словаре выучены 👏",
+                keyboard = listOf(listOf(backButton()))
+            )
+        } else {
+            BotResponse(
+                text = buildQuestionText(question),
+                keyboard = buildQuestionKeyboard(question)
+            )
+        }
+
+        sendResponse(chatId, null, response)
+    }
+
+    private fun buildMenuResponse(): BotResponse {
+        val text = "Выбери действие:"
+
+        val keyboard = listOf(
+            listOf(TelegramButton("📚 Учить слова", LEARN_WORDS_CLICKED)),
+            listOf(TelegramButton("📊 Статистика", STATISTICS_CLICKED))
+        )
+
+        return BotResponse(text, keyboard)
+    }
+
+    private fun buildStatisticsResponse(): BotResponse {
+        val statistics = trainer.getStatistics()
+
+        val text =
+            "Выучено ${statistics.learned} из ${statistics.total} слов | ${statistics.percent}%"
+
+        val keyboard = listOf(listOf(backButton()))
+
+        return BotResponse(text, keyboard)
+    }
+
+    private fun buildLearningResponse(
+        isCorrect: Boolean,
+        correctWord: Word?,
+        nextQuestion: Question?,
+    ): BotResponse {
+
+        val resultText = buildAnswerResultText(isCorrect, correctWord)
+
+        if (nextQuestion == null) {
+            return BotResponse(
+                text = "$resultText\n\n🎉 Все слова выучены! УРА!",
+                keyboard = listOf(listOf(backButton()))
+            )
+        }
+
+        val text = """
+$resultText
+
+${buildQuestionText(nextQuestion)}
+        """.trimIndent()
+
+        val keyboard = buildQuestionKeyboard(nextQuestion)
+
+        return BotResponse(text, keyboard)
+    }
+
+    private fun buildAnswerResultText(
+        isCorrect: Boolean,
+        correctWord: Word?,
+    ): String {
+        return if (isCorrect) {
+            "✅ Верно!"
+        } else {
+            "❌ Неверно!\n\n${correctWord?.text} — это ${correctWord?.translate}."
+        }
+    }
+
+    private fun buildQuestionText(question: Question): String {
+        return """
+🤓 Как переводится слово <code>${question.correctAnswer.text}</code>?
+        """.trimIndent()
+    }
+
+    private fun buildQuestionKeyboard(
+        question: Question,
+    ): List<List<TelegramButton>> {
+
+        val answerRows = question.variants
+            .mapIndexed { i, word ->
+                TelegramButton(word.translate, "$CALLBACK_DATA_ANSWER_PREFIX$i")
+            }
+            .chunked(2)
+
+        return answerRows + listOf(listOf(backButton()))
+    }
+
+    private fun backButton(): TelegramButton {
+        return TelegramButton("🔙 Назад", CALLBACK_DATA_BACK)
+    }
+
+    fun sendResponse(
+        chatId: String,
+        messageId: Int?,
+        response: BotResponse,
+    ) {
+        if (messageId != null) {
+            editMessageWithKeyboard(chatId, messageId, response.text, response.keyboard)
+        } else {
+            sendMessageWithKeyboard(chatId, response.text, response.keyboard)
+        }
+    }
+
+    private fun sendMessageWithKeyboard(
+        chatId: String,
+        text: String,
+        keyboardRows: List<List<TelegramButton>>,
+    ) {
+
+        val keyboardJson = keyboardRows.joinToString(",") { it.toJsonRow() }
 
         val body = """
             {
               "chat_id": $chatId,
-              "text": "Основное меню",
+              "text": "$text",
+              "parse_mode": "HTML",
               "reply_markup": {
                 "inline_keyboard": [
-                  [
-                    {
-                      "text": "Изучать слова",
-                      "callback_data": "$LEARN_WORDS_CLICKED"
-                    },
-                    {
-                      "text": "Статистика",
-                      "callback_data": "$STATISTICS_CLICKED"
-                    }
-                  ]
+                  $keyboardJson
                 ]
               }
             }
         """.trimIndent()
 
-        sendJson(body)
+        sendJson("$TELEGRAM_BASE_URL$botToken/sendMessage", body)
     }
 
-    fun handleCallback(chatId: String, callbackData: String) {
+    private fun editMessageWithKeyboard(
+        chatId: String,
+        messageId: Int,
+        text: String,
+        keyboardRows: List<List<TelegramButton>>,
+    ) {
 
-        when (callbackData) {
+        val keyboardJson = keyboardRows.joinToString(",") { it.toJsonRow() }
 
-            LEARN_WORDS_CLICKED -> {
-                sendMessage(chatId, "Пока не сделали :)")
+        val body = """
+            {
+              "chat_id": $chatId,
+              "message_id": $messageId,
+              "text": "$text",
+              "parse_mode": "HTML",
+              "reply_markup": {
+                "inline_keyboard": [
+                  $keyboardJson
+                ]
+              }
             }
+        """.trimIndent()
 
-            STATISTICS_CLICKED -> {
-                val statistics = trainer.getStatistics()
-                val body = """
-                    {
-                      "chat_id": $chatId,
-                      "text": "Выучено ${statistics.learned} из ${statistics.total} слов | ${statistics.percent}%",
-                      "reply_markup": {
-                        "inline_keyboard": [
-                          [
-                            {
-                              "text": "⬅️ В меню",
-                              "callback_data": "$BACK_TO_MENU"
-                            }
-                          ]
-                        ]
-                      }
-                    }
-                """.trimIndent()
-
-                sendJson(body)
-            }
-
-            BACK_TO_MENU -> {
-                sendMenu(chatId)
-            }
-        }
+        sendJson("$TELEGRAM_BASE_URL$botToken/editMessageText", body)
     }
 
-    private fun sendJson(body: String) {
-        val url = "$TELEGRAM_BASE_URL$botToken/sendMessage"
-
-        val request = HttpRequest.newBuilder().uri(URI.create(url)).header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(body)).build()
+    private fun sendJson(url: String, body: String) {
+        val request = HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .build()
 
         client.send(request, HttpResponse.BodyHandlers.ofString())
     }
 }
+
+data class TelegramButton(
+    val text: String,
+    val callbackData: String,
+)
+
+data class BotResponse(
+    val text: String,
+    val keyboard: List<List<TelegramButton>>,
+)
+
+fun TelegramButton.toJson(): String = """
+{
+  "text": "$text",
+  "callback_data": "$callbackData"
+}
+""".trimIndent()
+
+fun List<TelegramButton>.toJsonRow(): String =
+    "[${this.joinToString(",") { it.toJson() }}]"
