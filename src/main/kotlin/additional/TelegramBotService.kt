@@ -52,19 +52,29 @@ class TelegramBotService(
             }
 
             callbackData.startsWith(CALLBACK_DATA_ANSWER_PREFIX) -> {
-                val index = callbackData
-                    .removePrefix(CALLBACK_DATA_ANSWER_PREFIX)
-                    .toIntOrNull() ?: return
+                val index = callbackData.removePrefix(CALLBACK_DATA_ANSWER_PREFIX).toIntOrNull() ?: return
 
-                val correctWord = trainer.getCorrectAnswer()
-                val isCorrect = trainer.submitAnswer(index)
+                val result = trainer.submitAnswer(index) ?: return
+
                 val nextQuestion = trainer.startLearning()
 
-                val response = buildLearningResponse(
-                    isCorrect,
-                    correctWord,
-                    nextQuestion
+                val resultText = buildAnswerResultText(
+                    result.isCorrect, result.correctWord
                 )
+
+                val response = if (nextQuestion == null) {
+                    BotResponse(
+                        text = "$resultText\n\n🎉 Все слова выучены! УРА!", keyboard = listOf(listOf(backButton()))
+                    )
+                } else {
+                    BotResponse(
+                        text = """
+$resultText
+
+${buildQuestionText(nextQuestion)}
+            """.trimIndent(), keyboard = buildQuestionKeyboard(nextQuestion)
+                    )
+                }
 
                 sendResponse(chatId, messageId, response)
             }
@@ -87,13 +97,11 @@ class TelegramBotService(
 
         val response = if (question == null) {
             BotResponse(
-                text = "🎉 Отлично! Все слова в словаре выучены 👏",
-                keyboard = listOf(listOf(backButton()))
+                text = "🎉 Отлично! Все слова в словаре выучены 👏", keyboard = listOf(listOf(backButton()))
             )
         } else {
             BotResponse(
-                text = buildQuestionText(question),
-                keyboard = buildQuestionKeyboard(question)
+                text = buildQuestionText(question), keyboard = buildQuestionKeyboard(question)
             )
         }
 
@@ -114,36 +122,9 @@ class TelegramBotService(
     private fun buildStatisticsResponse(): BotResponse {
         val statistics = trainer.getStatistics()
 
-        val text =
-            "Выучено ${statistics.learned} из ${statistics.total} слов | ${statistics.percent}%"
+        val text = "Выучено ${statistics.learned} из ${statistics.total} слов | ${statistics.percent}%"
 
         val keyboard = listOf(listOf(backButton()))
-
-        return BotResponse(text, keyboard)
-    }
-
-    private fun buildLearningResponse(
-        isCorrect: Boolean,
-        correctWord: Word?,
-        nextQuestion: Question?,
-    ): BotResponse {
-
-        val resultText = buildAnswerResultText(isCorrect, correctWord)
-
-        if (nextQuestion == null) {
-            return BotResponse(
-                text = "$resultText\n\n🎉 Все слова выучены! УРА!",
-                keyboard = listOf(listOf(backButton()))
-            )
-        }
-
-        val text = """
-$resultText
-
-${buildQuestionText(nextQuestion)}
-        """.trimIndent()
-
-        val keyboard = buildQuestionKeyboard(nextQuestion)
 
         return BotResponse(text, keyboard)
     }
@@ -169,11 +150,9 @@ ${buildQuestionText(nextQuestion)}
         question: Question,
     ): List<List<TelegramButton>> {
 
-        val answerRows = question.variants
-            .mapIndexed { i, word ->
-                TelegramButton(word.translate, "$CALLBACK_DATA_ANSWER_PREFIX$i")
-            }
-            .chunked(2)
+        val answerRows = question.variants.mapIndexed { i, word ->
+            TelegramButton(word.translate, "$CALLBACK_DATA_ANSWER_PREFIX$i")
+        }.chunked(2)
 
         return answerRows + listOf(listOf(backButton()))
     }
@@ -245,11 +224,8 @@ ${buildQuestionText(nextQuestion)}
     }
 
     private fun sendJson(url: String, body: String) {
-        val request = HttpRequest.newBuilder()
-            .uri(URI.create(url))
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(body))
-            .build()
+        val request = HttpRequest.newBuilder().uri(URI.create(url)).header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(body)).build()
 
         client.send(request, HttpResponse.BodyHandlers.ofString())
     }
@@ -272,5 +248,4 @@ fun TelegramButton.toJson(): String = """
 }
 """.trimIndent()
 
-fun List<TelegramButton>.toJsonRow(): String =
-    "[${this.joinToString(",") { it.toJson() }}]"
+fun List<TelegramButton>.toJsonRow(): String = "[${this.joinToString(",") { it.toJson() }}]"

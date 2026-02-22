@@ -25,27 +25,47 @@ data class Statistics(
     val percent: Int,
 )
 
+data class AnswerResult(
+    val isCorrect: Boolean,
+    val correctWord: Word,
+)
+
 class LearnWordsTrainer(private val dictionary: MutableList<Word>) {
 
-    private var currentQuestion: Question? = null
+    private sealed class LearningState {
+        object Idle : LearningState()
+        data class Asking(val question: Question) : LearningState()
+    }
 
-    fun canStartStudy(): Boolean =
-        dictionary.size >= MIN_TOTAL_WORDS
+    private var state: LearningState = LearningState.Idle
+
+    fun canStartStudy(): Boolean = dictionary.size >= MIN_TOTAL_WORDS
 
     fun startLearning(): Question? {
+
         if (!canStartStudy()) return null
+
+        val currentState = state
+        if (currentState is LearningState.Asking) {
+            return currentState.question
+        }
 
         val notLearnedList = dictionary.filterNotLearnedWords()
         if (notLearnedList.isEmpty()) return null
 
         val question = getNextQuestion(notLearnedList)
-        currentQuestion = question
+        state = LearningState.Asking(question)
+
         return question
     }
 
-    fun submitAnswer(index: Int): Boolean {
-        val question = currentQuestion ?: return false
-        val selectedWord = question.variants.getOrNull(index) ?: return false
+    fun submitAnswer(index: Int): AnswerResult? {
+
+        val currentState = state
+        if (currentState !is LearningState.Asking) return null
+
+        val question = currentState.question
+        val selectedWord = question.variants.getOrNull(index) ?: return null
 
         val isCorrect = selectedWord == question.correctAnswer
 
@@ -54,12 +74,12 @@ class LearnWordsTrainer(private val dictionary: MutableList<Word>) {
             dictionary.saveToFile()
         }
 
-        currentQuestion = null
-        return isCorrect
-    }
+        state = LearningState.Idle
 
-    fun getCorrectAnswer(): Word? =
-        currentQuestion?.correctAnswer
+        return AnswerResult(
+            isCorrect = isCorrect, correctWord = question.correctAnswer
+        )
+    }
 
     fun getStatistics(): Statistics {
         val total = dictionary.size
@@ -67,8 +87,7 @@ class LearnWordsTrainer(private val dictionary: MutableList<Word>) {
             it.correctAnswersCount >= MIN_RIGHT_ANSWERED
         }
 
-        val percent =
-            if (total > 0) (learned * 100) / total else 0
+        val percent = if (total > 0) (learned * 100) / total else 0
 
         return Statistics(
             learned = learned,
@@ -80,11 +99,8 @@ class LearnWordsTrainer(private val dictionary: MutableList<Word>) {
     private fun getNextQuestion(notLearnedList: List<Word>): Question {
         val correct = notLearnedList.random()
 
-        val others =
-            if (notLearnedList.size >= MIN_UNLEARNED_WORDS)
-                notLearnedList.shuffledMinus(correct, 3)
-            else
-                dictionary.shuffledMinus(correct, 3)
+        val others = if (notLearnedList.size >= MIN_UNLEARNED_WORDS) notLearnedList.shuffledMinus(correct, 3)
+        else dictionary.shuffledMinus(correct, 3)
 
         return Question(
             variants = (listOf(correct) + others).shuffled(),
@@ -93,17 +109,12 @@ class LearnWordsTrainer(private val dictionary: MutableList<Word>) {
     }
 }
 
-fun List<Word>.filterNotLearnedWords() =
-    filter { it.correctAnswersCount < MIN_RIGHT_ANSWERED }
-        .toMutableList()
+fun List<Word>.filterNotLearnedWords() = filter { it.correctAnswersCount < MIN_RIGHT_ANSWERED }.toMutableList()
 
 fun List<Word>.shuffledMinus(
     exclude: Word,
     limit: Int,
-) =
-    filter { it != exclude }
-        .shuffled()
-        .take(limit)
+) = filter { it != exclude }.shuffled().take(limit)
 
 fun String.toWord(): Word? {
     val parts = split("|")
@@ -119,9 +130,7 @@ fun String.toWord(): Word? {
 fun loadDictionary(fileName: String): MutableList<Word> {
     val wordsFile = File(fileName)
     return try {
-        wordsFile.readLines()
-            .mapNotNull { it.toWord() }
-            .toMutableList()
+        wordsFile.readLines().mapNotNull { it.toWord() }.toMutableList()
     } catch (e: IOException) {
         println("Ошибка чтения файла: ${e.message}")
         mutableListOf()
