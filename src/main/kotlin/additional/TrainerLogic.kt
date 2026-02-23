@@ -33,7 +33,7 @@ data class AnswerResult(
 class LearnWordsTrainer(private val dictionary: MutableList<Word>) {
 
     private sealed class LearningState {
-        object Idle : LearningState()
+        data object Idle : LearningState()
         data class Asking(val question: Question) : LearningState()
     }
 

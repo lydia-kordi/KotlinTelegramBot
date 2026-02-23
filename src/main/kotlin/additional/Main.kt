@@ -1,5 +1,7 @@
 package additional
 
+import kotlinx.serialization.json.Json
+
 const val HELLO_COMMAND = "/start"
 
 fun main(args: Array<String>) {
@@ -15,37 +17,41 @@ fun main(args: Array<String>) {
     val trainer = LearnWordsTrainer(dictionary)
     val botService = TelegramBotService(botToken, trainer)
 
-    val updateIdRegex = "\"update_id\"\\s*:\\s*(\\d+)".toRegex()
-    val chatIdRegex = "\"chat\"\\s*:\\s*\\{\\s*\"id\"\\s*:\\s*(\\d+)".toRegex()
-    val messageIdRegex = "\"message_id\"\\s*:\\s*(\\d+)".toRegex()
-    val messageTextRegex = "\"text\"\\s*:\\s*\"(.+?)\"".toRegex()
-    val callbackRegex = "\"data\"\\s*:\\s*\"(.+?)\"".toRegex()
-
     var updateId = 0
+    val json = Json {
+        ignoreUnknownKeys = true
+    }
 
     while (true) {
         Thread.sleep(2000)
 
-        val updates = botService.getUpdates(updateId)
+        val updatesRaw = botService.getUpdates(updateId)
+        val updates = json.decodeFromString<UpdateResponse>(updatesRaw)
 
-        updateIdRegex.find(updates)?.let {
-            updateId = it.groupValues[1].toInt() + 1
-        }
+        updates.result.forEach { update ->
 
-        val chatId = chatIdRegex.find(updates)?.groupValues?.get(1)
-        val messageId = messageIdRegex.find(updates)?.groupValues?.get(1)?.toInt()
-        val text = messageTextRegex.find(updates)?.groups?.get(1)?.value
-        val callback = callbackRegex.find(updates)?.groups?.get(1)?.value
-        val normalizedText = text?.trim()?.lowercase()?.replace(Regex("\\s+"), " ")
+            updateId = (update.updateId + 1).toInt()
 
-        if (chatId != null) {
+            val message = update.message
+            val callback = update.callbackQuery
 
-            if (callback != null && messageId != null) {
-                println("chatId = $chatId, messageId = $messageId, callback=$callback")
-                botService.handleCallback(chatId, messageId, callback)
+            if (callback != null) {
+                val chatId = callback.message.chat.id
+                val messageId = callback.message.messageId.toInt()
 
-            } else if (normalizedText != null) {
-                println("message=$text")
+                botService.handleCallback(
+                    chatId,
+                    messageId,
+                    callback.data
+                )
+
+            } else if (message?.text != null) {
+
+                val chatId = message.chat.id
+                val normalizedText = message.text
+                    .trim()
+                    .lowercase()
+                    .replace(Regex("\\s+"), " ")
 
                 when {
                     normalizedText.startsWith(HELLO_COMMAND) ->
@@ -57,7 +63,9 @@ fun main(args: Array<String>) {
                             null,
                             BotResponse(
                                 text = "Такой команды не существует :(",
-                                keyboard = listOf(listOf(TelegramButton("🔙 Назад", "back")))
+                                keyboard = listOf(
+                                    listOf(TelegramButton("🔙 Назад", "back"))
+                                )
                             )
                         )
                 }

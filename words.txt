@@ -1,7 +1,7 @@
 cat|кошка|0
 dog|собака|2
-mouse|мышь|2
-spider|паук|1
+mouse|мышь|3
+spider|паук|2
 skunk|скунс|3
 hawk|ястреб|3
 seagull|чайка|2
