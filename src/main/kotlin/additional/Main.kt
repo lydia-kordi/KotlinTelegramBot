@@ -12,10 +12,7 @@ fun main(args: Array<String>) {
     }
 
     val botToken = args[0]
-    val dictionary = loadDictionary("words.txt")
-
-    val trainer = LearnWordsTrainer(dictionary)
-    val botService = TelegramBotService(botToken, trainer)
+    val botService = TelegramBotService(botToken)
 
     var updateId = 0
     val json = Json {
@@ -40,34 +37,24 @@ fun main(args: Array<String>) {
                 val messageId = callback.message.messageId.toInt()
 
                 botService.handleCallback(
-                    chatId,
-                    messageId,
-                    callback.data
+                    chatId, messageId, callback.data
                 )
 
             } else if (message?.text != null) {
 
                 val chatId = message.chat.id
-                val normalizedText = message.text
-                    .trim()
-                    .lowercase()
-                    .replace(Regex("\\s+"), " ")
+                val normalizedText = message.text.trim().lowercase().replace(Regex("\\s+"), " ")
 
                 when {
-                    normalizedText.startsWith(HELLO_COMMAND) ->
-                        botService.handleStart(chatId)
+                    normalizedText.startsWith(HELLO_COMMAND) -> botService.handleStart(chatId)
 
-                    else ->
-                        botService.sendResponse(
-                            chatId,
-                            null,
-                            BotResponse(
-                                text = "Такой команды не существует :(",
-                                keyboard = listOf(
-                                    listOf(TelegramButton("🔙 Назад", "back"))
-                                )
+                    else -> botService.sendResponse(
+                        chatId, null, BotResponse(
+                            text = "Такой команды не существует :(", keyboard = listOf(
+                                listOf(TelegramButton("🔙 Назад", "back"))
                             )
                         )
+                    )
                 }
             }
         }

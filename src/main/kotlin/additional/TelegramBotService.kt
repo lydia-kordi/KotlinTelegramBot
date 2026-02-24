@@ -8,10 +8,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
+import java.io.File
 
 const val TELEGRAM_BASE_URL = "https://api.telegram.org/bot"
 const val LEARN_WORDS_CLICKED = "learn_words_clicked"
 const val STATISTICS_CLICKED = "show_statistics_clicked"
+const val RESET_CLICKED = "reset_progress_clicked"
 
 private const val CALLBACK_DATA_BACK = "back"
 private const val CALLBACK_DATA_ANSWER_PREFIX = "answer_"
@@ -19,82 +21,81 @@ private const val CALLBACK_DATA_ANSWER_PREFIX = "answer_"
 @Serializable
 data class UpdateResponse(
     val ok: Boolean,
-    val result: List<Update>
+    val result: List<Update>,
 )
 
 @Serializable
 data class Update(
-    @SerialName("update_id")
-    val updateId: Long,
+    @SerialName("update_id") val updateId: Long,
     val message: Message? = null,
-    @SerialName("callback_query")
-    val callbackQuery: CallbackQuery? = null
+    @SerialName("callback_query") val callbackQuery: CallbackQuery? = null,
 )
 
 @Serializable
 data class Message(
-    @SerialName("message_id")
-    val messageId: Long,
+    @SerialName("message_id") val messageId: Long,
     val chat: Chat,
-    val text: String? = null
+    val text: String? = null,
 )
 
 @Serializable
 data class Chat(
-    val id: Long
+    val id: Long,
 )
 
 @Serializable
 data class CallbackQuery(
     val data: String,
-    val message: Message
+    val message: Message,
 )
 
 @Serializable
 data class SendMessageRequest(
-    @SerialName("chat_id")
-    val chatId: Long,
+    @SerialName("chat_id") val chatId: Long,
     val text: String,
-    @SerialName("parse_mode")
-    val parseMode: String = "HTML",
-    @SerialName("reply_markup")
-    val replyMarkup: ReplyMarkup
+    @SerialName("parse_mode") val parseMode: String = "HTML",
+    @SerialName("reply_markup") val replyMarkup: ReplyMarkup,
 )
 
 @Serializable
 data class EditMessageRequest(
-    @SerialName("chat_id")
-    val chatId: Long,
-    @SerialName("message_id")
-    val messageId: Int,
+    @SerialName("chat_id") val chatId: Long,
+    @SerialName("message_id") val messageId: Int,
     val text: String,
-    @SerialName("parse_mode")
-    val parseMode: String = "HTML",
-    @SerialName("reply_markup")
-    val replyMarkup: ReplyMarkup
+    @SerialName("parse_mode") val parseMode: String = "HTML",
+    @SerialName("reply_markup") val replyMarkup: ReplyMarkup,
 )
 
 @Serializable
 data class ReplyMarkup(
-    @SerialName("inline_keyboard")
-    val inlineKeyboard: List<List<InlineKeyboardButton>>
+    @SerialName("inline_keyboard") val inlineKeyboard: List<List<InlineKeyboardButton>>,
 )
 
 @Serializable
 data class InlineKeyboardButton(
     val text: String,
-    @SerialName("callback_data")
-    val callbackData: String
+    @SerialName("callback_data") val callbackData: String,
 )
 
 private val json = Json { encodeDefaults = true }
 
-class TelegramBotService(
-    private val botToken: String,
-    private val trainer: LearnWordsTrainer,
-) {
+class TelegramBotService(private val botToken: String) {
+
+    private val trainers = mutableMapOf<Long, LearnWordsTrainer>()
 
     private val client: HttpClient = HttpClient.newBuilder().build()
+
+    private fun getTrainer(chatId: Long): LearnWordsTrainer =
+        trainers.getOrPut(chatId) {
+            val userFileName = "words_$chatId.txt"
+            val trainer = LearnWordsTrainer(userFileName)
+
+            if (!File(userFileName).exists()) {
+                trainer.resetProgress()
+            }
+
+            trainer
+        }
 
     fun getUpdates(updateID: Int): String {
         val url = "$TELEGRAM_BASE_URL$botToken/getUpdates?offset=$updateID"
@@ -118,8 +119,19 @@ class TelegramBotService(
                 checkNextQuestionAndSend(chatId)
             }
 
+            callbackData == RESET_CLICKED -> {
+                val trainer = getTrainer(chatId)
+                trainer.resetProgress()
+
+                val response = buildMenuResponse().copy(
+                    text = "♻️ Прогресс успешно сброшен!\n\nВыбери действие:"
+                )
+
+                sendResponse(chatId, messageId, response)
+            }
+
             callbackData == STATISTICS_CLICKED -> {
-                val response = buildStatisticsResponse()
+                val response = buildStatisticsResponse(chatId)
                 sendResponse(chatId, messageId, response)
             }
 
@@ -130,6 +142,8 @@ class TelegramBotService(
 
             callbackData.startsWith(CALLBACK_DATA_ANSWER_PREFIX) -> {
                 val index = callbackData.removePrefix(CALLBACK_DATA_ANSWER_PREFIX).toIntOrNull() ?: return
+
+                val trainer = getTrainer(chatId)
 
                 val result = trainer.submitAnswer(index) ?: return
 
@@ -160,6 +174,7 @@ ${buildQuestionText(nextQuestion)}
 
     private fun checkNextQuestionAndSend(chatId: Long) {
 
+        val trainer = getTrainer(chatId)
 
         if (!trainer.canStartStudy()) {
             val response = BotResponse(
@@ -190,18 +205,21 @@ ${buildQuestionText(nextQuestion)}
 
         val keyboard = listOf(
             listOf(TelegramButton("📚 Учить слова", LEARN_WORDS_CLICKED)),
-            listOf(TelegramButton("📊 Статистика", STATISTICS_CLICKED))
+            listOf(TelegramButton("📊 Статистика", STATISTICS_CLICKED)),
         )
 
         return BotResponse(text, keyboard)
     }
 
-    private fun buildStatisticsResponse(): BotResponse {
+    private fun buildStatisticsResponse(chatId: Long): BotResponse {
+
+        val trainer = getTrainer(chatId)
         val statistics = trainer.getStatistics()
 
         val text = "Выучено ${statistics.learned} из ${statistics.total} слов | ${statistics.percent}%"
 
-        val keyboard = listOf(listOf(backButton()))
+        val keyboard =
+            listOf(listOf(TelegramButton("♻\uFE0F Сбросить прогресс", "reset_progress_clicked")), listOf(backButton()))
 
         return BotResponse(text, keyboard)
     }
@@ -219,7 +237,7 @@ ${buildQuestionText(nextQuestion)}
 
     private fun buildQuestionText(question: Question): String {
         return """
-🤓 Как переводится слово <code>${question.correctAnswer.text}</code>?
+            🤓 Как переводится слово <code>${question.correctAnswer.text}</code>?
         """.trimIndent()
     }
 
@@ -235,7 +253,7 @@ ${buildQuestionText(nextQuestion)}
     }
 
     private fun backButton(): TelegramButton {
-        return TelegramButton("🔙 Назад", CALLBACK_DATA_BACK)
+        return TelegramButton("⬅\uFE0F Назад", CALLBACK_DATA_BACK)
     }
 
     fun sendResponse(
@@ -257,13 +275,9 @@ ${buildQuestionText(nextQuestion)}
     ) {
 
         val requestBody = SendMessageRequest(
-            chatId = chatId,
-            text = text,
-            replyMarkup = ReplyMarkup(
-                inlineKeyboard = keyboardRows.map { row ->
-                    row.map { InlineKeyboardButton(it.text, it.callbackData) }
-                }
-            )
+            chatId = chatId, text = text, replyMarkup = ReplyMarkup(inlineKeyboard = keyboardRows.map { row ->
+                row.map { InlineKeyboardButton(it.text, it.callbackData) }
+            })
         )
 
         val body = json.encodeToString(requestBody)
@@ -282,11 +296,9 @@ ${buildQuestionText(nextQuestion)}
             chatId = chatId,
             messageId = messageId,
             text = text,
-            replyMarkup = ReplyMarkup(
-                inlineKeyboard = keyboardRows.map { row ->
-                    row.map { InlineKeyboardButton(it.text, it.callbackData) }
-                }
-            )
+            replyMarkup = ReplyMarkup(inlineKeyboard = keyboardRows.map { row ->
+                row.map { InlineKeyboardButton(it.text, it.callbackData) }
+            })
         )
 
         val body = json.encodeToString(requestBody)
