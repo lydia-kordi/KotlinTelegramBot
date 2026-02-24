@@ -4,6 +4,10 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 
 const val TELEGRAM_BASE_URL = "https://api.telegram.org/bot"
 const val LEARN_WORDS_CLICKED = "learn_words_clicked"
@@ -11,6 +15,79 @@ const val STATISTICS_CLICKED = "show_statistics_clicked"
 
 private const val CALLBACK_DATA_BACK = "back"
 private const val CALLBACK_DATA_ANSWER_PREFIX = "answer_"
+
+@Serializable
+data class UpdateResponse(
+    val ok: Boolean,
+    val result: List<Update>
+)
+
+@Serializable
+data class Update(
+    @SerialName("update_id")
+    val updateId: Long,
+    val message: Message? = null,
+    @SerialName("callback_query")
+    val callbackQuery: CallbackQuery? = null
+)
+
+@Serializable
+data class Message(
+    @SerialName("message_id")
+    val messageId: Long,
+    val chat: Chat,
+    val text: String? = null
+)
+
+@Serializable
+data class Chat(
+    val id: Long
+)
+
+@Serializable
+data class CallbackQuery(
+    val data: String,
+    val message: Message
+)
+
+@Serializable
+data class SendMessageRequest(
+    @SerialName("chat_id")
+    val chatId: Long,
+    val text: String,
+    @SerialName("parse_mode")
+    val parseMode: String = "HTML",
+    @SerialName("reply_markup")
+    val replyMarkup: ReplyMarkup
+)
+
+@Serializable
+data class EditMessageRequest(
+    @SerialName("chat_id")
+    val chatId: Long,
+    @SerialName("message_id")
+    val messageId: Int,
+    val text: String,
+    @SerialName("parse_mode")
+    val parseMode: String = "HTML",
+    @SerialName("reply_markup")
+    val replyMarkup: ReplyMarkup
+)
+
+@Serializable
+data class ReplyMarkup(
+    @SerialName("inline_keyboard")
+    val inlineKeyboard: List<List<InlineKeyboardButton>>
+)
+
+@Serializable
+data class InlineKeyboardButton(
+    val text: String,
+    @SerialName("callback_data")
+    val callbackData: String
+)
+
+private val json = Json { encodeDefaults = true }
 
 class TelegramBotService(
     private val botToken: String,
@@ -26,13 +103,13 @@ class TelegramBotService(
         return response.body()
     }
 
-    fun handleStart(chatId: String) {
+    fun handleStart(chatId: Long) {
         val response = buildMenuResponse()
         sendResponse(chatId, null, response)
     }
 
     fun handleCallback(
-        chatId: String,
+        chatId: Long,
         messageId: Int,
         callbackData: String,
     ) {
@@ -81,7 +158,7 @@ ${buildQuestionText(nextQuestion)}
         }
     }
 
-    private fun checkNextQuestionAndSend(chatId: String) {
+    private fun checkNextQuestionAndSend(chatId: Long) {
 
 
         if (!trainer.canStartStudy()) {
@@ -162,7 +239,7 @@ ${buildQuestionText(nextQuestion)}
     }
 
     fun sendResponse(
-        chatId: String,
+        chatId: Long,
         messageId: Int?,
         response: BotResponse,
     ) {
@@ -174,51 +251,45 @@ ${buildQuestionText(nextQuestion)}
     }
 
     private fun sendMessageWithKeyboard(
-        chatId: String,
+        chatId: Long,
         text: String,
         keyboardRows: List<List<TelegramButton>>,
     ) {
 
-        val keyboardJson = keyboardRows.joinToString(",") { it.toJsonRow() }
+        val requestBody = SendMessageRequest(
+            chatId = chatId,
+            text = text,
+            replyMarkup = ReplyMarkup(
+                inlineKeyboard = keyboardRows.map { row ->
+                    row.map { InlineKeyboardButton(it.text, it.callbackData) }
+                }
+            )
+        )
 
-        val body = """
-            {
-              "chat_id": $chatId,
-              "text": "$text",
-              "parse_mode": "HTML",
-              "reply_markup": {
-                "inline_keyboard": [
-                  $keyboardJson
-                ]
-              }
-            }
-        """.trimIndent()
+        val body = json.encodeToString(requestBody)
 
         sendJson("$TELEGRAM_BASE_URL$botToken/sendMessage", body)
     }
 
     private fun editMessageWithKeyboard(
-        chatId: String,
+        chatId: Long,
         messageId: Int,
         text: String,
         keyboardRows: List<List<TelegramButton>>,
     ) {
 
-        val keyboardJson = keyboardRows.joinToString(",") { it.toJsonRow() }
+        val requestBody = EditMessageRequest(
+            chatId = chatId,
+            messageId = messageId,
+            text = text,
+            replyMarkup = ReplyMarkup(
+                inlineKeyboard = keyboardRows.map { row ->
+                    row.map { InlineKeyboardButton(it.text, it.callbackData) }
+                }
+            )
+        )
 
-        val body = """
-            {
-              "chat_id": $chatId,
-              "message_id": $messageId,
-              "text": "$text",
-              "parse_mode": "HTML",
-              "reply_markup": {
-                "inline_keyboard": [
-                  $keyboardJson
-                ]
-              }
-            }
-        """.trimIndent()
+        val body = json.encodeToString(requestBody)
 
         sendJson("$TELEGRAM_BASE_URL$botToken/editMessageText", body)
     }
@@ -240,12 +311,3 @@ data class BotResponse(
     val text: String,
     val keyboard: List<List<TelegramButton>>,
 )
-
-fun TelegramButton.toJson(): String = """
-{
-  "text": "$text",
-  "callback_data": "$callbackData"
-}
-""".trimIndent()
-
-fun List<TelegramButton>.toJsonRow(): String = "[${this.joinToString(",") { it.toJson() }}]"
