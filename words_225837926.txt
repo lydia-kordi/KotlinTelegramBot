@@ -6,5 +6,5 @@ skunk|скунс|3
 hawk|ястреб|3
 seagull|чайка|2
 cobra|кобра|1
-peacock|павлин|2
-toad|жаба|2
+peacock|павлин|3
+toad|жаба|3

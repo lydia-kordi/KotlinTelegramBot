@@ -1,7 +1,6 @@
 package additional
 
 import java.io.File
-import java.io.IOException
 
 const val MIN_TOTAL_WORDS = 4
 const val MIN_RIGHT_ANSWERED = 3
@@ -30,7 +29,9 @@ data class AnswerResult(
     val correctWord: Word,
 )
 
-class LearnWordsTrainer(private val dictionary: MutableList<Word>) {
+class LearnWordsTrainer(private val fileName: String) {
+
+    private val dictionary: MutableList<Word> = loadDictionary()
 
     private sealed class LearningState {
         data object Idle : LearningState()
@@ -59,6 +60,20 @@ class LearnWordsTrainer(private val dictionary: MutableList<Word>) {
         return question
     }
 
+    private fun loadDictionary(): MutableList<Word> {
+        val userFile = File(fileName)
+
+        if (!userFile.exists()) {
+            val templateFile = File(WORDS_FILE_NAME)
+            require(templateFile.exists()) {
+                "Базовый словарь $WORDS_FILE_NAME не найден"
+            }
+            templateFile.copyTo(userFile)
+        }
+
+        return userFile.readLines().mapNotNull { it.toWord() }.toMutableList()
+    }
+
     fun submitAnswer(index: Int): AnswerResult? {
 
         val currentState = state
@@ -71,7 +86,7 @@ class LearnWordsTrainer(private val dictionary: MutableList<Word>) {
 
         if (isCorrect) {
             question.correctAnswer.correctAnswersCount++
-            dictionary.saveToFile()
+            saveDictionary()
         }
 
         state = LearningState.Idle
@@ -79,6 +94,14 @@ class LearnWordsTrainer(private val dictionary: MutableList<Word>) {
         return AnswerResult(
             isCorrect = isCorrect, correctWord = question.correctAnswer
         )
+    }
+
+    private fun saveDictionary() {
+        File(fileName).printWriter().use { out ->
+            dictionary.forEach {
+                out.println("${it.text}|${it.translate}|${it.correctAnswersCount}")
+            }
+        }
     }
 
     fun getStatistics(): Statistics {
@@ -107,6 +130,13 @@ class LearnWordsTrainer(private val dictionary: MutableList<Word>) {
             correctAnswer = correct,
         )
     }
+
+    fun resetProgress() {
+        dictionary.forEach {
+            it.correctAnswersCount = 0
+        }
+        saveDictionary()
+    }
 }
 
 fun List<Word>.filterNotLearnedWords() = filter { it.correctAnswersCount < MIN_RIGHT_ANSWERED }.toMutableList()
@@ -125,22 +155,4 @@ fun String.toWord(): Word? {
             parts.getOrNull(2)?.toIntOrNull() ?: 0,
         )
     } else null
-}
-
-fun loadDictionary(fileName: String): MutableList<Word> {
-    val wordsFile = File(fileName)
-    return try {
-        wordsFile.readLines().mapNotNull { it.toWord() }.toMutableList()
-    } catch (e: IOException) {
-        println("Ошибка чтения файла: ${e.message}")
-        mutableListOf()
-    }
-}
-
-fun List<Word>.saveToFile(fileName: String = WORDS_FILE_NAME) {
-    File(fileName).printWriter().use { out ->
-        forEach {
-            out.println("${it.text}|${it.translate}|${it.correctAnswersCount}")
-        }
-    }
 }
