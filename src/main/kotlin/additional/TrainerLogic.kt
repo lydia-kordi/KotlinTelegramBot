@@ -63,16 +63,15 @@ class LearnWordsTrainer(private val fileName: String) {
     private fun loadDictionary(): MutableList<Word> {
         val userFile = File(fileName)
 
-        return if (!userFile.exists()) {
+        if (!userFile.exists()) {
             val templateFile = File(WORDS_FILE_NAME)
             require(templateFile.exists()) {
                 "Базовый словарь $WORDS_FILE_NAME не найден"
             }
-            templateFile.copyTo(userFile, overwrite = false)
-            templateFile.readLines().mapNotNull { it.toWord() }.map { it.copy(correctAnswersCount = 0) }.toMutableList()
-        } else {
-            userFile.readLines().mapNotNull { it.toWord() }.toMutableList()
+            templateFile.copyTo(userFile)
         }
+
+        return userFile.readLines().mapNotNull { it.toWord() }.toMutableList()
     }
 
     fun submitAnswer(index: Int): AnswerResult? {

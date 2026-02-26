@@ -8,7 +8,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
-import java.io.File
 
 const val TELEGRAM_BASE_URL = "https://api.telegram.org/bot"
 const val LEARN_WORDS_CLICKED = "learn_words_clicked"
@@ -85,17 +84,11 @@ class TelegramBotService(private val botToken: String) {
 
     private val client: HttpClient = HttpClient.newBuilder().build()
 
-    private fun getTrainer(chatId: Long): LearnWordsTrainer =
-        trainers.getOrPut(chatId) {
-            val userFileName = "words_$chatId.txt"
-            val trainer = LearnWordsTrainer(userFileName)
-
-            if (!File(userFileName).exists()) {
-                trainer.resetProgress()
-            }
-
-            trainer
-        }
+    private fun getTrainer(chatId: Long): LearnWordsTrainer = trainers.getOrPut(chatId) {
+        val userFileName = "words_$chatId.txt"
+        val trainer = LearnWordsTrainer(userFileName)
+        trainer
+    }
 
     fun getUpdates(updateID: Int): String {
         val url = "$TELEGRAM_BASE_URL$botToken/getUpdates?offset=$updateID"
@@ -145,7 +138,14 @@ class TelegramBotService(private val botToken: String) {
 
                 val trainer = getTrainer(chatId)
 
-                val result = trainer.submitAnswer(index) ?: return
+                val result = trainer.submitAnswer(index)
+                if (result == null) {
+                    val response = BotResponse(
+                        text = "Сессия устарела. Начни обучение заново 🙂", keyboard = listOf(listOf(backButton()))
+                    )
+                    sendResponse(chatId, messageId, response)
+                    return
+                }
 
                 val nextQuestion = trainer.startLearning()
 
@@ -218,8 +218,7 @@ ${buildQuestionText(nextQuestion)}
 
         val text = "Выучено ${statistics.learned} из ${statistics.total} слов | ${statistics.percent}%"
 
-        val keyboard =
-            listOf(listOf(TelegramButton("♻\uFE0F Сбросить прогресс", "reset_progress_clicked")), listOf(backButton()))
+        val keyboard = listOf(listOf(TelegramButton("♻\uFE0F Сбросить прогресс", RESET_CLICKED)), listOf(backButton()))
 
         return BotResponse(text, keyboard)
     }
