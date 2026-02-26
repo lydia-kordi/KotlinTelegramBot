@@ -80,15 +80,14 @@ private val json = Json { encodeDefaults = true }
 
 class TelegramBotService(private val botToken: String) {
 
-    private val trainers = mutableMapOf<Long, LearnWordsTrainer>()
+    private val trainers: HashMap<Long, LearnWordsTrainer> = HashMap()
 
     private val client: HttpClient = HttpClient.newBuilder().build()
 
-    private fun getTrainer(chatId: Long): LearnWordsTrainer = trainers.getOrPut(chatId) {
-        val userFileName = "words_$chatId.txt"
-        val trainer = LearnWordsTrainer(userFileName)
-        trainer
-    }
+    private fun getTrainer(chatId: Long): LearnWordsTrainer =
+        trainers.getOrPut(chatId) {
+            LearnWordsTrainer("words_$chatId.txt")
+        }
 
     fun getUpdates(updateID: Int): String {
         val url = "$TELEGRAM_BASE_URL$botToken/getUpdates?offset=$updateID"
